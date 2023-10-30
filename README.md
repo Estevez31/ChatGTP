@@ -7,7 +7,7 @@
 # **Ing. En Sistemas Computacionales**
 # **SISTEMAS PROGRAMABLES 23a**
 # **Estevez Ramirez Maria Teresa - 20211773**
-## FECHA: 22 de octubre del 2023
+## FECHA: 30 de octubre del 2023
 
 # **ChatGTP**
 ## Código 
@@ -15,69 +15,114 @@
 # Alumno: Estevez Ramirez Maria Teresa
 # No. control: 20211773
 
-import machine
-import ssd1306
+import json
 import network
+import time
 import urequests
-import ujson
+import ssd1306
 
-# Configuración de la pantalla OLED
-i2c = machine.I2C(0, sda=machine.Pin(8), scl=machine.Pin(9), freq=400000)
-oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+# Internal libs
+i2c = machine.I2C(0, sda=machine.Pin(9), scl=machine.Pin(8), freq=400000)
+pantalla = ssd1306.SSD1306_I2C(128, 64, i2c)
+cmd = machine.Pin(17, machine.Pin.IN, machine.Pin.PULL_UP)
 
-# Configuración de la red WiFi
-wifi = network.WLAN(network.STA_IF)
-wifi.active(True)
-wifi.connect("OPPO A53", "f082dd9d35a2")  # Reemplaza "xxxx" con tu contraseña de WiFi
-while not wifi.isconnected():
-    pass
-
-# Función para obtener respuesta de ChatGPT
-def ask_chatgpt(texto_entrada):
-    # Configuración de la API de ChatGPT (reemplaza con tus propias credenciales)
-    api_url = 'https://api.openai.com/v1/engines/davinci/completions'
-    api_key = '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'
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    data = {
-        "prompt": texto_entrada,
-        "max_tokens": 50,
-    }
-
-    response = urequests.post(api_url, json=data, headers=headers)
-    response_data = ujson.loads(response.text)
-    oled.fill(0)
-    oled.text("Respuesta: ", 0, 0)
-
-    if 'choices' in response_data:
-        oled.text(response_data['choices'][0]['text'], 0, 16)
-        response_text = response_data['choices'][0]['text']
-    else:
-        response_text = "No hay respuesta"
+def mod_chat(ssid, password, endpoint, api_key, model, prompt, max_tokens):
+    """
+        Description: This is a function to hit chat gpt api and get
+            a response.
+        
+        Parameters:
+        
+        ssid[str]: The name of your internet connection
+        password[str]: Password for your internet connection
+        endpoint[str]: API enpoint
+        api_key[str]: API key for access
+        model[str]: AI model (see openAI documentation)
+        prompt[str]: Input to the model
+        max_tokens[int]: The maximum number of tokens to
+            generate in the completion.
+        
+        Returns: Simply prints the response
+    """
+    # Just making our internet connection
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    wlan.connect(ssid, password)
     
-    oled.show()
-    return response_text
+    # Wait for connect or fail
+    max_wait = 10
+    while max_wait > 0:
+      if wlan.status() < 0 or wlan.status() >= 3:
+        break
+      max_wait -= 1
+      print('Buscando conexión. ¡Espere!')
+      time.sleep(1)
+    # Handle connection error
+    if wlan.status() != 3:
+       print(wlan.status())
+       raise RuntimeError('La conexión ha fallado. Intente más tarde.')
+    else:
+      print('Conexión exitosa')
+      print(wlan.status())
+      status = wlan.ifconfig()
+    
+    ## Begin formatting request
+    headers = {'Content-Type': 'application/json',
+               "Authorization": "Bearer " + api_key}
+    data = {"model": model,
+            "prompt": prompt,
+            "max_tokens": max_tokens}
+    
+    print("Prompt en proceso de envío")
+    r = urequests.post("https://api.openai.com/v1/{}".format(endpoint),
+                       json=data,
+                       headers=headers)
+    
+    if r.status_code >= 300 or r.status_code < 200:
+        print("Lo siento. Hubo un error en generar la respuesta \n" +
+              "Estado de la solicitud: " + str(r.text))
+    else:
+        print("Petición exitosa")
+        response_data = json.loads(r.text)
+        completion = response_data["choices"][0]["text"]
+        print(completion)
+        
+        pantalla.fill(0)
 
-# Bucle principal
+        completion_text = completion
+        max_chars_per_line = 15
+        lines = [completion_text[i:i+max_chars_per_line] for i in range(0, len(completion_text), max_chars_per_line)]
+
+        for i, line in enumerate(lines):
+            pantalla.text(line, 0, i * 10)  # Usar un espaciado vertical de 10 píxeles
+
+        pantalla.show()
+
+    r.close()
+
+def enter(p):
+    if not cmd.value():
+        print("¡Enviando prompt! Se ha presionando el botón")
+        # Mostrar "Sending prompt" en la pantalla OLED
+        pantalla.fill(0)  # Borra la pantalla
+        pantalla.text("Prompt enviado", 0, 0)
+        pantalla.show()
+        
+        
+        mod_chat("Jesail",
+                 "",
+                 "completions",
+                 "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",
+                 "text-davinci-003",
+                  "Give me the 10 in Romani",
+                 20)
+
+# Configura una interrupción en el botón para llamar a button_callback cuando se presiona el botón
+cmd.irq(trigger=machine.Pin.IRQ_FALLING, handler=enter)
+
 while True:
-    # Esperar a que se presione el botón (ajusta el pin y la configuración según tu hardware)
-    boton = machine.Pin(17, machine.Pin.IN, machine.Pin.PULL_UP)
-    if not boton.value():
-        oled.fill(0)
-        oled.text("Bienvenido", 0, 0)
-        questions = "¿Cómo te ayudo?:"
-        oled.text(questions, 0, 16)
-        oled.show()
-        texto_entrada = input("¿Cómo te ayudo?: ")  # Inicializa la entrada de texto
-        oled.text(texto_entrada, 0, 32)
-        oled.show()
-        response = ask_chatgpt(texto_entrada)
-        # Mostrar en OLED
-        oled.text(response, 0, 48)
-        oled.show()
+    # Tu código principal puede continuar aquí
+    pass
 
 ```
 ## Simulación del circuito
@@ -86,16 +131,9 @@ while True:
 ## Curcuito
 ![]()
 
-## ENCENDIDO
+## Mensaje
 ![]()
 > Web
 
 ![]()
-> Encendido
-
-## Apagado
-![]()
-> Web
-
-![]()
-> Apagado
+> Mensaje
