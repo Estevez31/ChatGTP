@@ -132,8 +132,8 @@ while True:
 ![](1.jpg)
 
 ## Mensaje
-![]()
-> Web
+![](2.PNG)
+> Consola
 
-![]()
-> Mensaje
+![](3.jpg)
+> Display
