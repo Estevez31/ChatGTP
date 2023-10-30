@@ -22,11 +22,11 @@ import urequests
 import ssd1306
 
 # Internal libs
-i2c = machine.I2C(0, sda=machine.Pin(9), scl=machine.Pin(8), freq=400000)
+i2c = machine.I2C(0, sda=machine.Pin(8), scl=machine.Pin(9), freq=400000)
 pantalla = ssd1306.SSD1306_I2C(128, 64, i2c)
 cmd = machine.Pin(17, machine.Pin.IN, machine.Pin.PULL_UP)
 
-def mod_chat(ssid, password, endpoint, api_key, model, prompt, max_tokens):
+def datos(ssid, password, endpoint, api_key, model, prompt, max_tokens):
     """
         Description: This is a function to hit chat gpt api and get
             a response.
@@ -109,12 +109,12 @@ def enter(p):
         pantalla.show()
         
         
-        mod_chat("Jesail",
+        datos("OPPO A53",
                  "",
                  "completions",
                  "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",
                  "text-davinci-003",
-                  "Give me the 10 in Romani",
+                  "Tell me a color of the rainbow",
                  20)
 
 # Configura una interrupción en el botón para llamar a button_callback cuando se presiona el botón
@@ -129,7 +129,7 @@ while True:
 ![]()
 
 ## Curcuito
-![]()
+![](1.jpg)
 
 ## Mensaje
 ![]()
